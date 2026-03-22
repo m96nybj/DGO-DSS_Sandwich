@@ -476,6 +476,95 @@ def print_s_alpha_table(s_alpha_rows):
     print()
 
 
+# ── Full delta_phi sweep (flat geometry only) ─────────────────────────────────
+
+def run_flat_full_sweep(global_params, outdir):
+    """
+    Run flat geometry (quad_alpha=0) for every delta_phi in 0..m-1.
+
+    Purpose: allow the statement "phi_max identified from a full sweep over
+    delta_phi in {0,...,m-1}" in the paper.  No physics changes; uses the same
+    run_single() as the rest of the suite.
+
+    Saves:
+      flat_full_sweep/total_vs_phase_full.png
+      flat_full_sweep/full_sweep.json
+      flat_full_sweep/full_sweep.npz
+    Returns the full totals dict {delta_phi: total} and phi_max.
+    """
+    m      = global_params['m']
+    n_col  = global_params['n_columns']
+    center = (n_col + 1) / 2.0
+
+    params = global_params.copy()
+    params['quad_alpha']  = 0.0
+    params['quad_center'] = center
+
+    subdir = os.path.join(outdir, 'flat_full_sweep')
+    os.makedirs(subdir, exist_ok=True)
+
+    print("--- flat full sweep  alpha=0.00000  delta_phi = 0 .. m-1")
+
+    totals = {}
+    for dphi in range(m):
+        run    = run_single(dphi, params)
+        totals[dphi] = sum(run['detector_profile'])
+        print(f"    delta_phi={dphi:3d}  total={totals[dphi]:5d}")
+
+    phi_max   = max(totals, key=totals.get)
+    phi_min   = min(totals, key=totals.get)
+    total_max = totals[phi_max]
+    total_min = totals[phi_min]
+    s_flat    = total_min / total_max if total_max > 0 else float('nan')
+
+    print(f"    full-sweep phi_min={phi_min}  phi_max={phi_max}"
+          f"  total_min={total_min}  total_max={total_max}"
+          f"  S={s_flat:.4f}")
+    print()
+
+    # Bar chart of all delta_phi totals
+    deltas     = list(range(m))
+    total_vals = [totals[d] for d in deltas]
+
+    fig, ax = plt.subplots(figsize=(max(10, m // 4), 4))
+    bar_colors = ['firebrick' if d == phi_min else
+                  'gold'     if d == phi_max else
+                  'steelblue' for d in deltas]
+    ax.bar(deltas, total_vals, color=bar_colors, alpha=0.85)
+    ax.set_xlabel('delta_phi (lower-source offset, ticks)')
+    ax.set_ylabel('total detector count (all columns)')
+    ax.set_title(
+        f'Flat geometry — full sweep delta_phi in {{0,...,{m-1}}}\n'
+        f'red = phi_min ({phi_min}), gold = phi_max ({phi_max})')
+    ax.set_xticks([d for d in deltas if d % max(1, m // 16) == 0])
+    plt.tight_layout()
+    plt.savefig(os.path.join(subdir, 'total_vs_phase_full.png'), dpi=130)
+    plt.close()
+
+    # Save JSON
+    doc = {
+        'geometry':    'flat',
+        'quad_alpha':  0.0,
+        'quad_center': center,
+        'delta_phi_range': f'0..{m-1}',
+        'phi_min':     phi_min,
+        'phi_max':     phi_max,
+        'total_min':   total_min,
+        'total_max':   total_max,
+        'S_flat':      s_flat,
+        'totals':      {str(d): totals[d] for d in deltas},
+    }
+    with open(os.path.join(subdir, 'full_sweep.json'), 'w') as f:
+        json.dump(doc, f, indent=2)
+
+    # Save NPZ
+    np.savez(os.path.join(subdir, 'full_sweep.npz'),
+             delta_phi  = np.array(deltas,      dtype=int),
+             totals     = np.array(total_vals,  dtype=int))
+
+    return totals, phi_max
+
+
 # ── Console summary table ──────────────────────────────────────────────────────
 
 def print_summary_table(all_geo_data):
@@ -511,6 +600,18 @@ def main():
           f"  source_period={GLOBAL_PARAMS['source_period']}")
     print(f"  delta_phi_values: {DELTA_PHI_VALUES}")
     print(f"  geometries: {[g[0] for g in geometries]}")
+    print()
+
+    # ── Full sweep (flat, all delta_phi) to verify phi_max ────────────────────
+    print("Step 1: full sweep over delta_phi in {0,...,m-1} for flat geometry")
+    print(f"        (enables paper statement: phi_max identified from full sweep)")
+    print()
+    _full_totals, full_sweep_phi_max = run_flat_full_sweep(GLOBAL_PARAMS, OUTDIR)
+    print(f"  Full sweep confirms phi_max = {full_sweep_phi_max}")
+    print()
+
+    # ── Paper suite (sparse phase list, all three geometries) ─────────────────
+    print("Step 2: paper suite over selected delta_phi values")
     print()
 
     all_geo_data = []   # list of (name, params, runs, stats)

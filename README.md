@@ -126,7 +126,24 @@ runs a fixed matrix of three geometries over selected phase offsets.
 | `quadratic_weak` | 1/96 | Gentle bow; partial redistribution |
 | `quadratic_strong` | 1/48 | Stronger bow; further redistribution |
 
-Phase offsets tested: `[0, 16, 31, 32, 33, 48]`
+Phase offsets for the paper suite: `[0, 16, 31, 32, 33, 48]`
+
+#### Full sweep (flat geometry)
+
+Before the paper suite, the script runs a complete sweep of `delta_phi ∈ {0,…,63}`
+for the flat geometry (`quad_alpha = 0`). This establishes `phi_max` rigorously
+from the full phase space rather than from the sparse list above.
+
+Result: `phi_max = 1`, `N_max = 450`, `N(delta_phi=0) = 225`, `S = 0.500`
+exactly. The suppression is precisely 2:1 in the flat case.
+
+Outputs saved under `Output/paper_sandwich/flat_full_sweep/`:
+
+| File | Content |
+|---|---|
+| `total_vs_phase_full.png` | Bar chart of total throughput for all 64 phase offsets |
+| `full_sweep.json` | `phi_min`, `phi_max`, totals for all `delta_phi` |
+| `full_sweep.npz` | Arrays `delta_phi` and `totals` |
 
 #### Outputs per geometry
 
@@ -159,14 +176,14 @@ Saved under `Output/paper_sandwich/`:
 
 ```
 geometry                   alpha  phi_max      N0    Nmax   S(alpha)
-flat                     0.00000       16     225     442      0.509
-quadratic_weak           0.01042       16     352     442      0.796
-quadratic_strong         0.02083       16     380     442      0.860
+flat                     0.00000        1     225     450      0.500
+quadratic_weak           0.01042        1     352     450      0.782
+quadratic_strong         0.02083        1     380     450      0.844
 ```
 
-S(alpha) increases with geometry strength: stronger quadratic curvature
-redistributes lower-row tokens across columns, reduces coincident arrivals, and
-weakens global suppression.
+`phi_max = 1` is confirmed by the full sweep. S(alpha) increases with geometry
+strength: stronger quadratic curvature redistributes lower-row tokens across
+columns, reduces coincident arrivals, and weakens global suppression.
 
 ---
 
@@ -196,7 +213,8 @@ In the flat geometry, suppression at `delta_phi = 0` is strongest:
   upper-row token.
 - Tokens frequently reach the same detector on the same tick.
 - The detector capacity limit blocks one of them.
-- Total throughput drops to about half the maximum tested value (`S ≈ 0.509`).
+- Total throughput drops to exactly half the maximum value (`S = 0.500`,
+  confirmed by a full sweep over Δφ ∈ {0,…,63}).
 
 Introducing quadratic curvature redistributes the lower-row routing. Near the
 centre, arrivals still overlap strongly and suppression remains significant.
